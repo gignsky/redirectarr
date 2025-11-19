@@ -22,6 +22,7 @@
           lolcat
           lazygit
           gitflow
+          pre-commit
 
           # dotfiles programs
           inputs.dotfiles.packages.${system}.quick-results
