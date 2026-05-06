@@ -8,6 +8,10 @@ use axum::{
     routing::get, // Helper function to create a GET route
 };
 
+// From tower_http crate - middleware for logging HTTP requests
+// We need to add this dependency to Cargo.toml
+use tower_http::trace::TraceLayer;
+
 // From tracing_subscriber crate - sets up our logging system
 use tracing_subscriber;
 
@@ -29,6 +33,28 @@ use std::net::SocketAddr;
 //   }
 #[tokio::main]
 async fn main() {
+    // Call our actual main logic and handle errors gracefully
+    if let Err(e) = run().await {
+        tracing::error!("❌ Fatal error: {}", e);
+        std::process::exit(1);
+    }
+}
+
+// ============================================================================
+// RUN FUNCTION - The actual application logic
+// ============================================================================
+//
+// Why a separate run() function?
+//   - main() can't return Result with #[tokio::main]
+//   - This pattern lets us use ? operator for error handling
+//   - All errors bubble up to main() for logging and clean exit
+//
+// The -> Result<(), Box<dyn std::error::Error>> means:
+//   - Returns Ok(()) on success (the () is "unit type", like void)
+//   - Returns Err(error) on failure, where error can be any error type
+//   - Box<dyn std::error::Error> is a "trait object" - any type implementing Error
+//
+async fn run() -> Result<(), Box<dyn std::error::Error>> {
     // ========================================================================
     // STEP 1: Initialize logging/tracing
     // ========================================================================
@@ -39,8 +65,13 @@ async fn main() {
     // - Shows the target (which module/function logged)
     //
     // tracing_subscriber::fmt() returns a builder
+    // .with_max_level() sets the minimum level to show
+    //   - Level::DEBUG shows debug!, info!, warn!, error!
+    //   - This is important because TraceLayer logs at DEBUG level
     // .init() consumes the builder and sets it as the global default
-    tracing_subscriber::fmt::init();
+    tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::DEBUG)
+        .init();
 
     // Now we can use tracing macros throughout our code!
     // This is better than println! because:
@@ -66,16 +97,32 @@ async fn main() {
     //      |      |
     //      |      +-- This is an async block (returns a Future)
     //      +--------- These are the parameters (none in this case)
-    let app = Router::new().route("/", get(|| async { "Hello, World!" }));
+    let app = Router::new()
+        .route("/", get(|| async { "Hello, World!" }))
+        // Add TraceLayer middleware to log all requests
+        //
+        // TraceLayer automatically logs:
+        //   - When a request starts (with method, path, version)
+        //   - When a request completes (with status code, duration)
+        //   - Any errors that occur
+        //
+        // .layer() adds middleware to the router
+        // Middleware wraps handlers - it runs before and after each request
+        //
+        // This uses the tracing framework we initialized earlier
+        // Logs will show up in the same format as our other tracing::info! calls
+        .layer(TraceLayer::new_for_http());
 
     // What happens here:
     // - When someone makes a GET request to "http://localhost:8080/"
+    // - TraceLayer logs: "started processing request"
     // - Axum calls our closure
     // - The closure returns the string "Hello, World!"
     // - Axum automatically converts it to an HTTP response with:
     //     * Status: 200 OK
     //     * Content-Type: text/plain
     //     * Body: "Hello, World!"
+    // - TraceLayer logs: "finished processing request" (with status, duration)
 
     // ========================================================================
     // STEP 3: Define the address and port to bind to
@@ -108,8 +155,18 @@ async fn main() {
     // tokio::net::TcpListener::bind(addr) creates the listener
     //   - This is async because binding might take time
     //   - .await pauses execution until the listener is ready
-    //   - .unwrap() crashes if binding fails (e.g., port already in use)
-    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+    //   - NOW: Instead of .unwrap(), we use ? to propagate errors
+    //
+    // The ? operator means:
+    //   - If bind succeeds, unwrap the Ok value and continue
+    //   - If bind fails, return the error immediately from run()
+    //   - Much better than crashing with .unwrap()!
+    //
+    // Common errors here:
+    //   - Port already in use (another program using 8080)
+    //   - Permission denied (ports < 1024 need root on Linux)
+    //   - Address not available (invalid IP address)
+    let listener = tokio::net::TcpListener::bind(addr).await?;
 
     tracing::info!("✅ Server ready to accept connections");
 
@@ -125,13 +182,16 @@ async fn main() {
     //   - The server runs in a loop accepting connections
     //   - This is why we need async - we're waiting for network events
     //
-    // .unwrap() crashes if the server encounters a fatal error
-    axum::serve(listener, app.into_make_service())
-        .await
-        .unwrap();
+    // NOW: Using ? instead of .unwrap()
+    //   - If server encounters a fatal error, we propagate it up
+    //   - Examples: Out of file descriptors, network interface down, etc.
+    axum::serve(listener, app.into_make_service()).await?;
 
     // If we reach here, the server has stopped (error or graceful shutdown)
     tracing::info!("👋 Server shut down");
+    
+    // Return Ok(()) to indicate successful completion
+    Ok(())
 }
 
 // ============================================================================
