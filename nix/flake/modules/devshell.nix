@@ -16,17 +16,25 @@
           config.pre-commit.devShell # See ./nix/modules/pre-commit.nix
         ];
         packages = with pkgs; [
-          just
-          nixd # Nix language server
-          nil
-          lolcat
-          lazygit
+          # nix stuff
+          nixd
+          nixfmt
+
+          # rust stuff
+          rustfmt
+          clippy
+          bacon
+          cargo
+
+          # utilities
           gitflow
-          pre-commit
+          just
+          lazygit
 
           # dotfiles programs
           inputs.dotfiles.packages.${system}.quick-results
           inputs.dotfiles.packages.${system}.upjust
+          inputs.dotfiles.packages.${system}.upignore
           # inputs.dotfiles.packages.${system}.cargo-update
         ];
         shellHook = ''

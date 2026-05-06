@@ -7,6 +7,12 @@
     };
     systems.url = "github:nix-systems/default";
 
+    # Rust-specific tooling
+    rust-flake = {
+      url = "github:juspay/rust-flake";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     git-hooks = {
       url = "github:cachix/git-hooks.nix";
       flake = false;
@@ -29,7 +35,7 @@
     inputs.flake-parts.lib.mkFlake { inherit inputs; } {
       systems = import inputs.systems;
 
-      # See ./nix/modules/*.nix for the modules that are imported here.
+      # See ./nix/flake/modules/*.nix for the modules that are imported here.
       imports =
         with builtins;
         map (fn: ./nix/flake/modules/${fn}) (attrNames (readDir ./nix/flake/modules));
