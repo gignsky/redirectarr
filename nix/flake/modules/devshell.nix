@@ -16,13 +16,19 @@
           config.pre-commit.devShell # See ./nix/modules/pre-commit.nix
         ];
         packages = with pkgs; [
-          just
-          nixd # Nix language server
-          nil
-          lolcat
-          lazygit
+          # nix stuff
+          nixd
+          nixfmt
+
+          # rust stuff
+          rustfmt
+          clippy
+          bacon
+
+          # utilities
           gitflow
-          pre-commit
+          just
+          lazygit
 
           # dotfiles programs
           inputs.dotfiles.packages.${system}.quick-results
