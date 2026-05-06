@@ -14,7 +14,7 @@
     {
       pre-commit.settings = {
         hooks = {
-          nixfmt-rfc-style.enable = true;
+          nixfmt.enable = true;
         };
       };
     };
