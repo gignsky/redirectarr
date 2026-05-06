@@ -24,6 +24,7 @@
           rustfmt
           clippy
           bacon
+          cargo
 
           # utilities
           gitflow
