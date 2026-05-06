@@ -15,6 +15,6 @@
       rust-project.crates."redirectarr".crane.args = {
         buildInputs = lib.optionals pkgs.stdenv.isDarwin (with pkgs.darwin.apple_sdk.frameworks; [ IOKit ]);
       };
-      packages.default = self'.packages.rust-nix-template;
+      packages.default = self'.packages.redirectarr;
     };
 }
