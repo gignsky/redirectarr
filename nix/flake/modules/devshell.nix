@@ -33,6 +33,7 @@
           # dotfiles programs
           inputs.dotfiles.packages.${system}.quick-results
           inputs.dotfiles.packages.${system}.upjust
+          inputs.dotfiles.packages.${system}.upignore
           # inputs.dotfiles.packages.${system}.cargo-update
         ];
         shellHook = ''
